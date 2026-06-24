@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>seele — 作品集</title>
+  <!-- 💡 如需修改字体，请访问 https://fonts.google.com 搜索喜欢的中文字体，替换下面两行 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================
+       🎨 全局样式 & 变量 — 在这里修改主题色
+       ============================================ */
+    :root {
+      --bg:          #FFF8F5;   /* 页面背景：暖白 */
+      --card-bg:     #FFFFFF;   /* 卡片背景 */
+      --text:        #4A3F3A;   /* 正文：暖棕 */
+      --text-light:  #9B8B82;   /* 次要文字 */
+      --accent:      #E8A0B4;   /* 主色调：玫瑰粉 */
+      --accent-dark: #C97A8E;   /* 强调色：深玫瑰 */
+      --accent-soft: #F6D5DC;   /* 柔和粉 */
+      --cream:       #FFF0EA;   /* 奶油色块 */
+      --border:      #F0E4DE;   /* 边框线 */
+      --shadow:      rgba(200, 140, 160, 0.15);
+      --radius:      16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Serif SC', 'SimSun', serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ============================================
+       顶部导航
+       ============================================ */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 248, 245, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .nav-logo {
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 22px;
+      color: var(--accent-dark);
+      text-decoration: none;
+      letter-spacing: 3px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-light);
+      font-size: 13px;
+      letter-spacing: 2px;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover { color: var(--accent-dark); }
+
+    /* ============================================
+       头部 — Hero 区域
+       ============================================ */
+    header {
+      text-align: center;
+      padding: 80px 24px 60px;
+      background: linear-gradient(180deg, var(--cream) 0%, var(--bg) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 背景装饰圆 */
+    header::before, header::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.35;
+      z-index: 0;
+    }
+    header::before {
+      width: 380px; height: 380px;
+      background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+      top: -120px; right: -80px;
+    }
+    header::after {
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, #FFF0D4, transparent 70%);
+      bottom: -60px; left: -60px;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; }
+
+    /* 💡 修改头像：把 url() 里的图片地址换成你自己的 */
+    .avatar {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 0 6px var(--cream), 0 4px 20px var(--shadow);
+      margin-bottom: 24px;
+      background: var(--accent-soft);
+    }
+
+    .hero-name {
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 42px;
+      color: var(--accent-dark);
+      letter-spacing: 6px;
+      margin-bottom: 8px;
+    }
+
+    /* 💡 修改签名 */
+    .hero-sub {
+      font-size: 13px;
+      color: var(--text-light);
+      letter-spacing: 4px;
+      margin-bottom: 20px;
+    }
+
+    /* 💡 修改简介 */
+    .hero-bio {
+      font-size: 15px;
+      color: var(--text);
+      max-width: 420px;
+      margin: 0 auto 28px;
+      opacity: 0.8;
+    }
+
+    /* 社交图标 */
+    .social-links {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .social-links a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text-light);
+      font-size: 13px;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .social-links a:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+
+    /* 装饰线 */
+    .divider {
+      width: 60px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      margin: 0 auto 32px;
+    }
+
+    /* ============================================
+       分类筛选
+       ============================================ */
+    .filter-bar {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 40px 24px 32px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 8px 22px;
+      border-radius: 50px;
+      border: 1.5px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text-light);
+      font-family: inherit;
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 14px var(--shadow);
+    }
+
+    /* ============================================
+       瀑布流作品区
+       ============================================ */
+    .gallery {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      columns: 3 280px;
+      column-gap: 20px;
+    }
+
+    .work-card {
+      break-inside: avoid;
+      margin-bottom: 20px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--card-bg);
+      box-shadow: 0 2px 12px var(--shadow);
+      transition: transform 0.35s, box-shadow 0.35s;
+      cursor: pointer;
+      position: relative;
+    }
+    .work-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 36px rgba(200, 140, 160, 0.25);
+    }
+
+    /* 💡 替换作品图片：改 src 为你的图片路径 */
+    .work-card img {
+      width: 100%;
+      display: block;
+    }
+
+    .work-info {
+      padding: 14px 16px 16px;
+    }
+    .work-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .work-tag {
+      font-size: 11px;
+      color: var(--accent-dark);
+      letter-spacing: 1px;
+    }
+
+    /* 悬停遮罩 */
+    .work-card .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(200, 120, 140, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+      border-radius: var(--radius);
+    }
+    .work-card:hover .overlay { opacity: 1; }
+    .overlay span {
+      color: #fff;
+      font-size: 13px;
+      letter-spacing: 3px;
+    }
+
+    /* 分类标签颜色 */
+    .tag-comic    { --accent: #C49AD4; --accent-dark: #9B6EB5; }
+    .tag-illust   { --accent: #E8A0B4; --accent-dark: #C97A8E; }
+    .tag-video    { --accent: #7EBAD6; --accent-dark: #4A93B5; }
+    .tag-game     { --accent: #A8C97E; --accent-dark: #7BA84A; }
+
+    /* ============================================
+       页脚
+       ============================================ */
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-light);
+      letter-spacing: 2px;
+    }
+
+    /* ============================================
+       动画
+       ============================================ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .work-card {
+      animation: fadeUp 0.6s ease both;
+    }
+    .work-card:nth-child(1)  { animation-delay: 0.05s; }
+    .work-card:nth-child(2)  { animation-delay: 0.10s; }
+    .work-card:nth-child(3)  { animation-delay: 0.15s; }
+    .work-card:nth-child(4)  { animation-delay: 0.20s; }
+    .work-card:nth-child(5)  { animation-delay: 0.25s; }
+    .work-card:nth-child(6)  { animation-delay: 0.30s; }
+
+    /* ============================================
+       响应式
+       ============================================ */
+    @media (max-width: 640px) {
+      .hero-name  { font-size: 30px; }
+      .nav-links  { display: none; }
+      nav          { padding: 0 20px; }
+      .gallery    { columns: 2; column-gap: 14px; }
+      .gallery    { padding: 0 14px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========== 导航栏 ========== -->
+<nav>
+  <div class="nav-inner">
+    <!-- 💡 修改站名 -->
+    <a href="#" class="nav-logo">SE E L E</a>
+    <ul class="nav-links">
+      <!-- 💡 修改导航链接 -->
+      <li><a href="#works">作品</a></li>
+      <li><a href="#about">关于</a></li>
+      <li><a href="#contact">联系</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ========== 头部 ========== -->
+<header>
+  <div class="hero-content">
+    <!-- 💡 修改头像：把 src 换成你的图片文件路径 -->
+    <img
+      src="https://api.dicebear.com/7.x/miniavs/svg?seed=seele&backgroundColor=ffe4ea"
+      alt="seele"
+      class="avatar"
+    >
+
+    <!-- 💡 修改名字 -->
+    <h1 class="hero-name">seele</h1>
+    <!-- 💡 修改副标题 -->
+    <p class="hero-sub">插画 / 漫画 / 视频 / 游戏</p>
+
+    <div class="divider"></div>
+
+    <!-- 💡 修改简介 -->
+    <p class="hero-bio">
+      用画笔筑一个小小的世界。<br>
+      漫画记录故事，插画留住情绪，视频呈现想象，游戏承载冒险。
+    </p>
+
+    <!-- 💡 修改社交链接（留空即隐藏） -->
+    <div class="social-links">
+      <!-- 示例：
+      <a href="https://weibo.com/你的ID" title="微博">WB</a>
+      <a href="https://twitter.com/你的ID" title="Twitter">TW</a>
+      <a href="mailto:your@email.com" title="邮箱">✉</a>
+      -->
+    </div>
+  </div>
+</header>
+
+<!-- ========== 作品区 ========== -->
+<section id="works">
+  <!-- 分类筛选 -->
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">全部</button>
+    <button class="filter-btn" data-filter="comic">漫画</button>
+    <button class="filter-btn" data-filter="illust">插画</button>
+    <button class="filter-btn" data-filter="video">视频</button>
+    <button class="filter-btn" data-filter="game">游戏</button>
+  </div>
+
+  <!-- 瀑布流画廊 -->
+  <div class="gallery" id="gallery">
+
+    <!-- ========== 👇 在这里添加你的作品 ==========
+         复制下面的 block，替换图片和文字即可。
+         图片建议尺寸：宽度 600px 以上，效果更佳。
+         分类可选：comic | illust | video | game
+    ========== -->
+
+    <!-- 示例：漫画 -->
+    <div class="work-card tag-comic" data-category="comic">
+      <img src="https://picsum.photos/seed/comic1/600/800" alt="漫画">
+      <div class="overlay"><span>查看</span></div>
+      <div class="work-info">
+        <div class="work-title">漫画作品 #1</div>
+        <div class="work-tag">漫画</div>
+      </div>
+    </div>
+
+    <!-- 示例：插画 -->
+    <div class="work-card tag-illust" data-category="illust">
+      <img src="https://picsum.photos/seed/illust1/600/450" alt="插画">
+      <div class="overlay"><span>查看</span></div>
+      <div class="work-info">
+        <div class="work-title">插画作品 #1</div>
+        <div class="work-tag">插画</div>
+      </div>
+    </div>
+
+    <!-- 示例：视频 -->
+    <div class="work-card tag-video" data-category="video">
+      <img src="https://picsum.photos/seed/video1/600/340" alt="视频封面">
+      <div class="overlay"><span>观看</span></div>
+      <div class="work-info">
+        <div class="work-title">视频作品 #1</div>
+        <div class="work-tag">视频</div>
+      </div>
+    </div>
+
+    <!-- 示例：游戏 -->
+    <div class="work-card tag-game" data-category="game">
+      <img src="https://picsum.photos/seed/game1/600/600" alt="游戏Demo">
+      <div class="overlay"><span>试玩</span></div>
+      <div class="work-info">
+        <div class="work-title">游戏Demo #1</div>
+        <div class="work-tag">游戏</div>
+      </div>
+    </div>
+
+    <!-- 示例：更多插画 -->
+    <div class="work-card tag-illust" data-category="illust">
+      <img src="https://picsum.photos/seed/illust2/600/750" alt="插画">
+      <div class="overlay"><span>查看</span></div>
+      <div class="work-info">
+        <div class="work-title">插画作品 #2</div>
+        <div class="work-tag">插画</div>
+      </div>
+    </div>
+
+    <!-- 示例：更多漫画 -->
+    <div class="work-card tag-comic" data-category="comic">
+      <img src="https://picsum.photos/seed/comic2/600/500" alt="漫画">
+      <div class="overlay"><span>查看</span></div>
+      <div class="work-info">
+        <div class="work-title">漫画作品 #2</div>
+        <div class="work-tag">漫画</div>
+      </div>
+    </div>
+
+    <!-- 👆 示例结束，删除上面的示例，填入你的真实作品 👆 -->
+
+  </div>
+</section>
+
+<!-- ========== 页脚 ========== -->
+<footer id="contact">
+  <!-- 💡 修改联系方式 -->
+  <p>© 2025 seele · 欢迎交流合作</p>
+</footer>
+
+<!-- ========== 交互脚本 ========== -->
+<script>
+  // 分类筛选
+  const btns = document.querySelectorAll('.filter-btn');
+  const cards = document.querySelectorAll('.work-card');
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const filter = btn.dataset.filter;
+      cards.forEach(card => {
+        if (filter === 'all' || card.dataset.category === filter) {
+          card.style.display = '';
+          card.style.animation = 'none';
+          card.offsetHeight; // reflow
+          card.style.animation = 'fadeUp 0.5s ease both';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
