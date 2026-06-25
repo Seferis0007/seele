@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -386,255 +386,162 @@
   <p>© 2025 seele · 欢迎交流合作</p>
 </footer>
 
-<script>
-/* ===========================
-   IndexedDB — 本地存储
-   =========================== */
-const DB_NAME = 'SeelePortfolio';
-const DB_VER = 1;
-const STORE = 'works';
+<script><script>
+/* =========================
+   数据来源：works.json + GitHub API
+   ========================= */
+const REPO_OWNER = 'Seferis0007';
+const REPO_NAME  = 'seele';
+const WORKS_PATH = 'works.json';
+const API_URL    = https://api.github.com/repos///contents/;
+const RAW_URL    = https://raw.githubusercontent.com///main/;
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
-        store.createIndex('category', 'category', { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+/* Token 管理 */
+function getToken() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('token')) {
+    const t = params.get('token');
+    localStorage.setItem('gh_token', t);
+    const newUrl = window.location.pathname + (params.has('admin') ? '?admin=1' : '') + window.location.hash;
+    history.replaceState(null, '', newUrl);
+    return t;
+  }
+  return localStorage.getItem('gh_token') || '';
+}
+const GH_TOKEN = getToken();
+
+async function githubFetch(url, options = {}) {
+  const headers = {
+    'Authorization': 'token ' + GH_TOKEN,
+    'Content-Type': 'application/json',
+    'Accept': 'application/vnd.github.v3+json',
+  };
+  if (options.headers) Object.assign(headers, options.headers);
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error('GitHub API ' + res.status + ': ' + text);
+  }
+  return res.json();
 }
 
-/* ===========================
-   数据操作
-   =========================== */
-async function getAllWorks() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => {
-      let works = req.result;
-      // Sort by order (works without order go to the end)
-      works.sort((a, b) => {
-        const oA = a.order ?? Infinity;
-        const oB = b.order ?? Infinity;
-        return oA - oB;
-      });
-      resolve(works);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function addWork(work) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const req = tx.objectStore(STORE).add(work);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function deleteWork(id) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const req = tx.objectStore(STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/* ===========================
-   Demo 作品（首次使用时导入）
-   =========================== */
-const DEMO_WORKS = [
-  { title: '漫画作品 #1', category: 'comic', image: 'https://picsum.photos/seed/comic1/600/800', order: 0 },
-  { title: '插画作品 #1', category: 'illust', image: 'https://picsum.photos/seed/illust1/600/450', order: 1 },
-  { title: '视频作品 #1', category: 'video', image: 'https://picsum.photos/seed/video1/600/340', order: 2 },
-  { title: '游戏Demo #1', category: 'game', image: 'https://picsum.photos/seed/game1/600/600', order: 3 },
-  { title: '插画作品 #2', category: 'illust', image: 'https://picsum.photos/seed/illust2/600/750', order: 4 },
-  { title: '漫画作品 #2', category: 'comic', image: 'https://picsum.photos/seed/comic2/600/500', order: 5 },
-];
-
+/* 加载作品 */
+let allWorks = [];
 let currentFilter = 'all';
 
-/* ===========================
-   Category helpers
-   =========================== */
+async function loadWorks() {
+  try {
+    const res = await fetch(RAW_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('无法加载作品数据');
+    allWorks = await res.json();
+    allWorks.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+    renderFilterBar();
+    renderWorks();
+  } catch (e) {
+    console.error('加载失败:', e);
+    document.getElementById('gallery').innerHTML = '<div class="empty-state"><p>加载作品失败 ✦</p></div>';
+  }
+}
+
 const CAT_LABELS = { comic: '漫画', illust: '插画', video: '视频', game: '游戏' };
 const CAT_TAGS  = { comic: 'tag-comic', illust: 'tag-illust', video: 'tag-video', game: 'tag-game' };
 
-/* ===========================
-   渲染
-   =========================== */
-function renderWorks(works, filter) {
+function renderWorks() {
   const gallery = document.getElementById('gallery');
-
-  if (!works.length) {
-    gallery.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🎨</div>
-        <p>还没有作品，点击右上角「+ 添加作品」开始吧</p>
-      </div>`;
-    return;
-  }
-
-  const filtered = filter === 'all' ? works : works.filter(w => w.category === filter);
+  const filtered = currentFilter === 'all' ? allWorks : allWorks.filter(w => w.category === currentFilter);
   if (!filtered.length) {
-    gallery.innerHTML = `<div class="empty-state"><p>这个分类还没有作品 ✦</p></div>`;
+    gallery.innerHTML = allWorks.length === 0
+      ? '<div class="empty-state"><div class="empty-icon">🎨</div><p>还没有作品，点击右上角「+ 添加作品」开始吧</p></div>'
+      : '<div class="empty-state"><p>这个分类还没有作品 ✦</p></div>';
     return;
   }
-
-  gallery.innerHTML = filtered.map((w, i) => `
-    <div class="work-card ${CAT_TAGS[w.category]}" data-category="${w.category}" data-id="${w.id}" style="animation: fadeUp 0.6s ease both; animation-delay: ${(i % 6) * 0.05}s">
-      <img src="${w.image}" alt="${w.title}" loading="lazy">
+  gallery.innerHTML = filtered.map((w, i) => 
+    <div class="work-card " data-category="" data-id="" style="animation: fadeUp 0.6s ease both; animation-delay: s">
+      <img src="" alt="" loading="lazy">
       <div class="overlay">
         <span>查看</span>
-        <button class="btn-delete" onclick="confirmDelete(${w.id}, event)">删除</button>
+        <button class="btn-delete" onclick="confirmDelete(, event)">删除</button>
       </div>
       <div class="work-info">
-        <div class="work-title">${w.title}</div>
-        <div class="work-tag">${CAT_LABELS[w.category]}</div>
+        <div class="work-title"></div>
+        <div class="work-tag"></div>
       </div>
     </div>
-  `).join('');
-
-  // 渲染后初始化 SortableJS
+  ).join('');
   initSortable();
 }
 
-function renderFilterBar(works) {
-  const categories = new Set(works.map(w => w.category));
+function renderFilterBar() {
+  const categories = new Set(allWorks.map(w => w.category));
   const bar = document.querySelector('.filter-bar');
-  const counts = { all: works.length };
-  categories.forEach(c => { counts[c] = works.filter(w => w.category === c).length; });
-
+  const counts = { all: allWorks.length };
+  categories.forEach(c => { counts[c] = allWorks.filter(w => w.category === c).length; });
   const items = [
-    { key: 'all', label: `全部 ${works.length}` },
-    ...Object.entries(CAT_LABELS).map(([k,v]) => ({ key: k, label: `${v} ${counts[k] || 0}` })),
+    { key: 'all', label: 全部  },
+    ...Object.entries(CAT_LABELS).map(([k,v]) => ({ key: k, label: ${v}  })),
   ];
-
-  bar.innerHTML = items.map(i => `
-    <button class="filter-btn ${i.key === currentFilter ? 'active' : ''}" data-filter="${i.key}">
-      ${i.label}
+  bar.innerHTML = items.map(i => 
+    <button class="filter-btn " data-filter="">
+      
     </button>
-  `).join('');
-
+  ).join('');
   bar.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       bar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.dataset.filter;
-      // Re-render from full works list
-      getAllWorks().then(works => renderWorks(works, currentFilter));
+      renderWorks();
     });
   });
 }
 
-/* ===========================
-   初始化 — 首次使用导入 demo
-   =========================== */
-async function initPortfolio() {
-  let existing = await getAllWorks();
-
-  if (existing.length === 0) {
-    for (const w of DEMO_WORKS) {
-      await addWork(w);
-    }
-    existing = await getAllWorks();
-  } else {
-    const needsOrder = existing.some(w => w.order === undefined);
-    if (needsOrder) {
-      existing.sort((a, b) => a.id - b.id);
-      for (let i = 0; i < existing.length; i++) {
-        if (existing[i].order === undefined) {
-          existing[i].order = i;
-          await updateWork(existing[i]);
-        }
-      }
-      existing = await getAllWorks();
-    }
-  }
-
-  renderFilterBar(existing);
-  renderWorks(existing, currentFilter);
-}
-
-/* ===========================
-   弹窗控制
-   =========================== */
+/* 弹窗控制 */
 function openModal() {
   document.getElementById('modalOverlay').classList.add('active');
   document.getElementById('workTitle').focus();
 }
-
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('active');
   resetForm();
 }
-
-/* 点击遮罩关闭 */
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
+document.getElementById('modalOverlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 
-/* ===========================
-   图片上传
-   =========================== */
+/* 图片上传 */
 let selectedFileData = null;
-
 function handleFileSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
   readFile(file);
 }
-
-// 拖拽支持
 const uploadZone = document.getElementById('uploadZone');
-uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); });
-uploadZone.addEventListener('drop', (e) => {
+uploadZone.addEventListener('drop', e => {
   e.preventDefault();
   uploadZone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
   if (file && file.type.startsWith('image/')) readFile(file);
 });
-
 function readFile(file) {
-  // 限制 10MB
-  if (file.size > 10 * 1024 * 1024) {
-    alert('图片太大了，请选择 10MB 以内的图片');
-    return;
-  }
+  if (file.size > 10 * 1024 * 1024) { alert('图片太大了，请选择 10MB 以内的图片'); return; }
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = e => {
     selectedFileData = e.target.result;
-    const preview = document.getElementById('uploadPreview');
-    preview.src = selectedFileData;
+    document.getElementById('uploadPreview').src = selectedFileData;
     uploadZone.classList.add('has-image');
     validateForm();
   };
   reader.readAsDataURL(file);
 }
 
-/* ===========================
-   表单验证
-   =========================== */
+/* 表单验证 */
 function validateForm() {
   const title = document.getElementById('workTitle').value.trim();
-  const saveBtn = document.getElementById('btnSave');
-  saveBtn.disabled = !(selectedFileData && title);
+  document.getElementById('btnSave').disabled = !(selectedFileData && title);
 }
-
 document.getElementById('workTitle').addEventListener('input', validateForm);
-
 function resetForm() {
   selectedFileData = null;
   document.getElementById('fileInput').value = '';
@@ -645,28 +552,8 @@ function resetForm() {
   document.getElementById('btnSave').disabled = true;
 }
 
-/* ===========================
-   拖拽排序 — 保存顺序
-   =========================== */
+/* 拖拽排序 */
 let sortableInstance = null;
-
-async function saveOrder() {
-  const cards = document.querySelectorAll('.work-card');
-  if (cards.length === 0) return;
-  const db = await openDB();
-  const tx = db.transaction(STORE, 'readwrite');
-  const store = tx.objectStore(STORE);
-  for (let i = 0; i < cards.length; i++) {
-    const id = parseInt(cards[i].dataset.id);
-    const work = await new Promise((resolve) => {
-      const req = store.get(id);
-      req.onsuccess = () => resolve(req.result);
-    });
-    if (work) { work.order = i; store.put(work); }
-  }
-  return new Promise((resolve) => { tx.oncomplete = resolve; });
-}
-
 function initSortable() {
   const gallery = document.getElementById('gallery');
   if (sortableInstance) sortableInstance.destroy();
@@ -677,63 +564,66 @@ function initSortable() {
     onEnd: () => { saveOrder(); },
   });
 }
-
-async function updateWork(work) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    const req = tx.objectStore(STORE).put(work);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+async function saveOrder() {
+  const cards = document.querySelectorAll('.work-card');
+  cards.forEach((card, i) => {
+    const id = parseInt(card.dataset.id);
+    const work = allWorks.find(w => w.id === id);
+    if (work) work.order = i;
   });
+  await saveWorksToGitHub('拖拽排序更新');
+  renderWorks();
 }
 
-/* ===========================
-   保存作品
-   =========================== */
+/* GitHub API — 保存 works.json */
+async function saveWorksToGitHub(message) {
+  if (!GH_TOKEN) { alert('需要先设置 GitHub Token（URL 带 ?token=xxx 访问一次）'); return false; }
+  try {
+    const data = await githubFetch(API_URL);
+    const sha = data.sha;
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(allWorks, null, 2))));
+    await githubFetch(API_URL, {
+      method: 'PUT',
+      body: JSON.stringify({ message, content, sha }),
+    });
+    return true;
+  } catch (e) {
+    console.error('保存到 GitHub 失败:', e);
+    alert('保存失败：' + e.message);
+    return false;
+  }
+}
+
+/* 添加作品 */
 async function saveWork() {
   const title = document.getElementById('workTitle').value.trim();
   const category = document.getElementById('workCategory').value;
   if (!selectedFileData || !title) return;
-
   const saveBtn = document.getElementById('btnSave');
   saveBtn.disabled = true;
   saveBtn.textContent = '保存中...';
-
-  // 新作品排最前：order=0，现有作品 order 全部 +1
-  const works = await getAllWorks();
-  for (const w of works) {
-    w.order = (w.order ?? 0) + 1;
-    await updateWork(w);
-  }
-
-  await addWork({ title, category, image: selectedFileData, order: 0 });
-
-  // 重新渲染
-  const all = await getAllWorks();
-  renderFilterBar(all);
-  renderWorks(all, currentFilter);
-
+  const newId = allWorks.length ? Math.max(...allWorks.map(w => w.id)) + 1 : 1;
+  allWorks.forEach(w => { w.order = (w.order ?? 0) + 1; });
+  allWorks.unshift({ id: newId, title, category, image: selectedFileData, order: 0 });
+  const ok = await saveWorksToGitHub('添加作品：' + title);
+  if (ok) await loadWorks();
   closeModal();
   saveBtn.textContent = '保存';
+  saveBtn.disabled = false;
 }
 
-/* ===========================
-   删除作品
-   =========================== */
+/* 删除作品 */
 async function confirmDelete(id, event) {
   event.stopPropagation();
   if (!confirm('确定删除这个作品吗？')) return;
-  await deleteWork(id);
-  const all = await getAllWorks();
-  renderFilterBar(all);
-  renderWorks(all, currentFilter);
+  allWorks = allWorks.filter(w => w.id !== id);
+  allWorks.forEach((w, i) => { w.order = i; });
+  const ok = await saveWorksToGitHub('删除作品');
+  if (ok) await loadWorks();
 }
 
-/* ===========================
-   ESC 关闭
-   =========================== */
-document.addEventListener('keydown', (e) => {
+/* ESC 关闭 */
+document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
@@ -747,8 +637,8 @@ document.addEventListener('keydown', (e) => {
 })();
 
 // 启动
-initPortfolio();
-</script>
+loadWorks();
+</script></script>
 
 </body>
 </html>

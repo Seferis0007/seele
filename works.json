@@ -1,0 +1,8 @@
+[
+  {"id":1,"title":"漫画作品 #1","category":"comic","image":"https://picsum.photos/seed/comic1/600/800","order":0},
+  {"id":2,"title":"插画作品 #1","category":"illust","image":"https://picsum.photos/seed/illust1/600/450","order":1},
+  {"id":3,"title":"视频作品 #1","category":"video","image":"https://picsum.photos/seed/video1/600/340","order":2},
+  {"id":4,"title":"游戏Demo #1","category":"game","image":"https://picsum.photos/seed/game1/600/600","order":3},
+  {"id":5,"title":"插画作品 #2","category":"illust","image":"https://picsum.photos/seed/illust2/600/750","order":4},
+  {"id":6,"title":"漫画作品 #2","category":"comic","image":"https://picsum.photos/seed/comic2/600/500","order":5}
+]
