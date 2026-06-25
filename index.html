@@ -295,6 +295,9 @@
     }
 
     /* ===== 响应式 ===== */
+    .work-card.sortable-ghost { opacity: 0.3; transform: scale(0.96); }
+    .work-card.sortable-chosen { opacity: 0.7; }
+
     @media (max-width: 640px) {
       .hero-name  { font-size: 30px; }
       nav         { padding: 0 20px; }
@@ -303,6 +306,7 @@
       .nav-links  { display: none; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 </head>
 <body>
 
@@ -311,7 +315,7 @@
   <div class="nav-inner">
     <a href="#" class="nav-logo">SE E L E</a>
     <div class="nav-right">
-      <button class="btn-add" onclick="openModal()">+ 添加作品</button>
+      <button class="btn-add" id="btnAdd" onclick="openModal()">+ 添加作品</button>
     </div>
   </div>
 </nav>
@@ -413,7 +417,16 @@ async function getAllWorks() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      let works = req.result;
+      // Sort by order (works without order go to the end)
+      works.sort((a, b) => {
+        const oA = a.order ?? Infinity;
+        const oB = b.order ?? Infinity;
+        return oA - oB;
+      });
+      resolve(works);
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -442,12 +455,12 @@ async function deleteWork(id) {
    Demo 作品（首次使用时导入）
    =========================== */
 const DEMO_WORKS = [
-  { title: '漫画作品 #1', category: 'comic', image: 'https://picsum.photos/seed/comic1/600/800' },
-  { title: '插画作品 #1', category: 'illust', image: 'https://picsum.photos/seed/illust1/600/450' },
-  { title: '视频作品 #1', category: 'video', image: 'https://picsum.photos/seed/video1/600/340' },
-  { title: '游戏Demo #1', category: 'game', image: 'https://picsum.photos/seed/game1/600/600' },
-  { title: '插画作品 #2', category: 'illust', image: 'https://picsum.photos/seed/illust2/600/750' },
-  { title: '漫画作品 #2', category: 'comic', image: 'https://picsum.photos/seed/comic2/600/500' },
+  { title: '漫画作品 #1', category: 'comic', image: 'https://picsum.photos/seed/comic1/600/800', order: 0 },
+  { title: '插画作品 #1', category: 'illust', image: 'https://picsum.photos/seed/illust1/600/450', order: 1 },
+  { title: '视频作品 #1', category: 'video', image: 'https://picsum.photos/seed/video1/600/340', order: 2 },
+  { title: '游戏Demo #1', category: 'game', image: 'https://picsum.photos/seed/game1/600/600', order: 3 },
+  { title: '插画作品 #2', category: 'illust', image: 'https://picsum.photos/seed/illust2/600/750', order: 4 },
+  { title: '漫画作品 #2', category: 'comic', image: 'https://picsum.photos/seed/comic2/600/500', order: 5 },
 ];
 
 let currentFilter = 'all';
@@ -480,7 +493,7 @@ function renderWorks(works, filter) {
   }
 
   gallery.innerHTML = filtered.map((w, i) => `
-    <div class="work-card ${CAT_TAGS[w.category]}" data-category="${w.category}" style="animation: fadeUp 0.6s ease both; animation-delay: ${(i % 6) * 0.05}s">
+    <div class="work-card ${CAT_TAGS[w.category]}" data-category="${w.category}" data-id="${w.id}" style="animation: fadeUp 0.6s ease both; animation-delay: ${(i % 6) * 0.05}s">
       <img src="${w.image}" alt="${w.title}" loading="lazy">
       <div class="overlay">
         <span>查看</span>
@@ -492,6 +505,9 @@ function renderWorks(works, filter) {
       </div>
     </div>
   `).join('');
+
+  // 渲染后初始化 SortableJS
+  initSortable();
 }
 
 function renderFilterBar(works) {
@@ -526,18 +542,29 @@ function renderFilterBar(works) {
    初始化 — 首次使用导入 demo
    =========================== */
 async function initPortfolio() {
-  const existing = await getAllWorks();
+  let existing = await getAllWorks();
+
   if (existing.length === 0) {
     for (const w of DEMO_WORKS) {
       await addWork(w);
     }
-    const all = await getAllWorks();
-    renderFilterBar(all);
-    renderWorks(all, currentFilter);
+    existing = await getAllWorks();
   } else {
-    renderFilterBar(existing);
-    renderWorks(existing, currentFilter);
+    const needsOrder = existing.some(w => w.order === undefined);
+    if (needsOrder) {
+      existing.sort((a, b) => a.id - b.id);
+      for (let i = 0; i < existing.length; i++) {
+        if (existing[i].order === undefined) {
+          existing[i].order = i;
+          await updateWork(existing[i]);
+        }
+      }
+      existing = await getAllWorks();
+    }
   }
+
+  renderFilterBar(existing);
+  renderWorks(existing, currentFilter);
 }
 
 /* ===========================
@@ -619,6 +646,49 @@ function resetForm() {
 }
 
 /* ===========================
+   拖拽排序 — 保存顺序
+   =========================== */
+let sortableInstance = null;
+
+async function saveOrder() {
+  const cards = document.querySelectorAll('.work-card');
+  if (cards.length === 0) return;
+  const db = await openDB();
+  const tx = db.transaction(STORE, 'readwrite');
+  const store = tx.objectStore(STORE);
+  for (let i = 0; i < cards.length; i++) {
+    const id = parseInt(cards[i].dataset.id);
+    const work = await new Promise((resolve) => {
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result);
+    });
+    if (work) { work.order = i; store.put(work); }
+  }
+  return new Promise((resolve) => { tx.oncomplete = resolve; });
+}
+
+function initSortable() {
+  const gallery = document.getElementById('gallery');
+  if (sortableInstance) sortableInstance.destroy();
+  sortableInstance = Sortable.create(gallery, {
+    animation: 200,
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onEnd: () => { saveOrder(); },
+  });
+}
+
+async function updateWork(work) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).put(work);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ===========================
    保存作品
    =========================== */
 async function saveWork() {
@@ -630,7 +700,14 @@ async function saveWork() {
   saveBtn.disabled = true;
   saveBtn.textContent = '保存中...';
 
-  await addWork({ title, category, image: selectedFileData });
+  // 新作品排最前：order=0，现有作品 order 全部 +1
+  const works = await getAllWorks();
+  for (const w of works) {
+    w.order = (w.order ?? 0) + 1;
+    await updateWork(w);
+  }
+
+  await addWork({ title, category, image: selectedFileData, order: 0 });
 
   // 重新渲染
   const all = await getAllWorks();
@@ -659,6 +736,15 @@ async function confirmDelete(id, event) {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
+
+// 只有 URL 带 ?admin=1 才显示添加按钮
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('admin')) {
+    const btn = document.getElementById('btnAdd');
+    if (btn) btn.style.display = 'none';
+  }
+})();
 
 // 启动
 initPortfolio();
